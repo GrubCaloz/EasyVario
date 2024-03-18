@@ -1,0 +1,162 @@
+#include <Arduino.h>
+#include <MPU9250_asukiaaa.h>
+#include <Adafruit_BMP280.h>
+
+#include <NimBLEDevice.h>
+
+#define SERVICE_UUID           "c3f08530-c133-4faf-80f6-e8981b5866fb"
+#define CHARACTERISTIC_UUID_RX "7c12b20a-17a6-4836-a3d2-451252070b57"
+#define CHARACTERISTIC_UUID_TX "41f5ee9b-9a82-4896-b842-99f83de90f4d"
+
+NimBLEServer* pServer                   = NULL;
+NimBLEService* pService                 = NULL;
+NimBLECharacteristic* pTxCharacteristic = NULL;
+NimBLECharacteristic* pRxCharacteristic = NULL;
+
+//ReceiveCallback* receiveCallback = NULL;
+
+
+//Capteurs
+Adafruit_BMP280 BMP; // I2C
+MPU9250_asukiaaa mySensor;
+float aX, aY, aZ, aSqrt, gX, gY, gZ, mDirection, mX, mY, mZ;
+
+unsigned long CycleTime = 100; //temps de cycle
+unsigned long NewCycleTime = 0;
+
+
+ char calculateChecksum(String nmeaSentence) {
+  char checksum = 0;
+  for (int i = 1; i < nmeaSentence.length(); i++) {
+    checksum ^= nmeaSentence.charAt(i);
+  }
+  return checksum;
+}
+String transmitFlySkyHy(float _pressurePa, float _temp, float _velocityFtPerSec, int _batteryPercent){
+
+  //EXAMPLE TRANSMISSION SENTENCE:
+  //$LK8EX1,98684,99999,-4,28,1100,*02<CR><LF>
+  //"$LK8EX1,92386,99999,9999,25,1100,*1b"
+ 
+  //   where:
+  //   $LK8EX1 is keyword
+  //   98684 is filtered pressure in Pa relative to QNH1
+  //   99999 should be altitude relative to QNH but it is ignored when pressure is available
+  //   -4 is filtered vario in cm / s
+  //   28 is temperature in °C
+  //   1100 is battery percentage + 1000 (or 999 during charging)
+  //   *02 is nmea checksum
+  //   <CR><LF> CR and LF characters to terminate the line
+  
+  //int cmPerSec = _velocityFtPerSec*30.48;
+  int PressTrunc=trunc(_pressurePa);
+  int TempTrunc=trunc(_temp);
+
+  String str_out =  //combine all values and create part of NMEA data string output https://gitlab.com/xcontest-public/xctrack-public/-/issues/600
+  String("LK8EX1" + String(",") + String(PressTrunc,DEC) + String(",") + String(99999,DEC)  + String(",") +
+  String(9999,DEC) + String(",") + String(TempTrunc,DEC) + String(",") + String(1100,DEC) + String(","));
+
+  unsigned int checksum, ai, bi;                                               // Calculating checksum for data string
+  for (checksum = 0, ai = 0; ai < str_out.length(); ai++)
+    {
+      bi = (unsigned char)str_out[ai];
+      checksum ^= bi;
+  }
+
+  String str_out2 = '$' + str_out + '*' + String(checksum,HEX);
+  return str_out2;
+  
+  /*
+
+  ble.print("AT+GATTCHAR=1,$LK8EX1,");
+  ble.println(_pressurePa,0);
+  ble.print("AT+GATTCHAR=1,,99999,");
+  ble.println(cmPerSec);
+  ble.print("AT+GATTCHAR=1,,28,10");
+  ble.println(_batteryPercent);
+  ble.print("AT+GATTCHAR=1,");
+  ble.println(",*02<CR><LF>");
+*/
+}
+
+// since BLE packets can only be 20 bytes, we split the string to be sent in chunks of 20 bytes and send them
+//https://gitlab.com/xcontest-public/xctrack-public/-/issues/600
+void send_ble_uart(const char* str, int size) {
+  int offset          = 0;
+  int remainingLength = size;
+
+  while (remainingLength > 0) {
+    int bytesToSend = min(20, remainingLength);
+    pTxCharacteristic->setValue((const uint8_t*)(str + offset), bytesToSend);
+    pTxCharacteristic->notify();
+    remainingLength -= bytesToSend;
+    offset += bytesToSend;
+  }
+}
+
+
+
+//=====================================================================================
+void setup() {
+  //démarrage serial
+  Serial.begin(115200);
+  //while (!Serial);
+  //Démarrage i2c
+  Wire.begin(4, 5);
+  mySensor.setWire(&Wire);
+  BMP.begin(0x76);
+  mySensor.beginAccel();
+  mySensor.beginGyro();
+  mySensor.beginMag();
+/*
+  NimBLEDevice::init("EasyVar");
+    
+    NimBLEServer *pServer = NimBLEDevice::createServer();
+    NimBLEService *pService = pServer->createService("ABCD");
+    NimBLECharacteristic *pCharacteristic = pService->createCharacteristic("1234");
+    
+    pService->start();
+    pCharacteristic->setValue("Hello BLE");
+    
+    NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID("ABCD"); 
+    pAdvertising->start(); */
+
+  NimBLEDevice::init("My Vario");
+  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+  NimBLEDevice::setSecurityAuth(true, true, true);
+  NimBLEDevice::setSecurityPasskey(123456);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
+
+  pServer = NimBLEDevice::createServer();
+  //pServer->setCallbacks(new DeviceConnectionCallback(&deviceConnected));
+
+  pService          = pServer->createService(SERVICE_UUID);
+  pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, NIMBLE_PROPERTY::NOTIFY);
+
+  pRxCharacteristic = pService->createCharacteristic(
+      CHARACTERISTIC_UUID_RX,
+      NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::WRITE_AUTHEN);
+
+  //pRxCharacteristic->setCallbacks(this->receiveCallback);
+  pService->start();
+  pServer->getAdvertising()->start();
+
+}
+//=====================================================================================
+
+
+//=====================================================================================
+void loop() {
+
+  if (millis()>NewCycleTime+CycleTime)
+  {
+    Serial.println(transmitFlySkyHy(BMP.readPressure(),BMP.readTemperature(),5,100));
+    NewCycleTime=millis();
+    send_ble_uart("$LK8EX1,92386,99999,9999,25,1100,*1b",37);
+  }
+  }
+//=====================================================================================
+
+
+

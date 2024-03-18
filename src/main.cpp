@@ -1,0 +1,126 @@
+#include <Arduino.h>
+//capteurs
+#include <MPU9250_asukiaaa.h>
+#include <Adafruit_BMP280.h>
+#include <RunningAverage.h>
+// I2C
+int sda = 4;
+int scl = 5;
+
+Adafruit_BMP280 BMP; 
+float Press,Alti,oldAlti,Temp,Vspeed_cmps;
+MPU9250_asukiaaa IMU;
+//float aX, aY, aZ, aSqrt, gX, gY, gZ, mDirection, mX, mY, mZ;
+
+RunningAverage AVGPress(100);
+RunningAverage AVGAlti(100);
+RunningAverage AVGvSpeed(10);
+
+//BLE
+#include <BleSerial.h>
+BleSerial ble;
+int LedPin=8;
+
+
+
+//temps de cycle pour lecture des capteurs
+unsigned long SensorCycleTime = 10; 
+unsigned long NewSensorCycleTime = 0;
+//temps de cycle pour la transmission BLE
+unsigned long CycleTime = 100; 
+unsigned long NewCycleTime = 0;
+
+String LK8EX1Sentence;
+
+//Checksum NMEA
+String NMEAcrc(String NMEAString ){
+  unsigned int checksum, ai, bi; // Calculating checksum for data string
+  for (checksum = 0, ai = 0; ai < NMEAString.length(); ai++)
+    {
+      bi = (unsigned char)NMEAString[ai];
+      checksum ^= bi;
+  }
+  String str_out2 = '$' + NMEAString + '*' + String(checksum,HEX);
+  return str_out2;
+}
+
+// calcul de la chaine de cararatère
+String transmitFlySkyHy(float _pressurePa,float _alti, float _VitVertical, float _temp, int _batteryPercent)// pression , altitude, température, Vitesse verticale, batterie percent
+{
+  //$LK8EX1,Pression,Altitude,vspeed,température,batterie,*CRC  
+  int Press=round(_pressurePa);
+  int Temp=round(_temp);
+  int Alti=round(_alti);
+  int Vspeed=round(_VitVertical);
+
+  String str_out =  //combine all values and create part of NMEA data string output https://gitlab.com/xcontest-public/xctrack-public/-/issues/600
+  String("LK8EX1,"  + String(Press,DEC) + String(",") + String(Alti,DEC)  + String(",") +
+  String(Vspeed,DEC) + String(",") + String(Temp,DEC) + String(",") + String(_batteryPercent+1000,DEC) + String(","));
+
+  str_out=NMEAcrc(str_out);
+  return str_out;
+};
+
+float Vspeed(float _oldalti,float _newalti, float _dt){//Vitesse verticale
+  float vspeed_cmps;
+  vspeed_cmps=(_newalti-_oldalti)*100/(_dt/1000); //calcul en cm/s
+  return vspeed_cmps;
+};
+
+
+
+//=====================================================================================
+void setup() {
+  //Serial
+  Serial.begin(115200);
+  //Démarrage i2c
+  Wire.begin(sda, scl);
+  //IMU
+  IMU.setWire(&Wire);
+  IMU.beginAccel();
+  IMU.beginGyro();
+  IMU.beginMag();
+
+  //BMP
+  BMP.begin(0x76);
+
+  //BLE
+  ble.begin("EasyVario",true,LedPin);
+  digitalWrite(LedPin,HIGH);
+
+  AVGPress.clear();
+  AVGAlti.clear();
+  AVGvSpeed.clear();
+}
+//=====================================================================================
+
+
+//=====================================================================================
+void loop() {
+
+  if (millis()>NewSensorCycleTime+SensorCycleTime) // boucle transmission
+  {    
+    Alti=BMP.readAltitude(1022.0); //lire l'altitude
+    oldAlti=AVGAlti.getAverage();
+    AVGAlti.addValue(Alti);
+    Vspeed_cmps=Vspeed(oldAlti,AVGAlti.getAverage(),SensorCycleTime);
+    AVGvSpeed.addValue(Vspeed_cmps);
+    Press=BMP.readPressure(); //Lire la pression
+    AVGPress.addValue(Press); // calcul de la moyenne
+    Temp=BMP.readTemperature(); // Lire la température
+    NewSensorCycleTime=millis();
+  };
+
+  if (millis()>NewCycleTime+CycleTime && ble.connected()) // boucle transmission
+  {
+    LK8EX1Sentence=transmitFlySkyHy(AVGPress.getAverage(),AVGAlti.getAverage(),AVGvSpeed.getAverage(),Temp,100);
+    //Serial.println(LK8EX1Sentence);
+    ble.println(LK8EX1Sentence);
+    NewCycleTime=millis();
+  }
+  
+  }
+//=====================================================================================
+
+
+
