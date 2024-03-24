@@ -1,21 +1,22 @@
 /*=====================================================================================================================================================
-// EasyVario - Simple vario bluetooth pour le parapente
-// Auteur : Jérôme Caloz
-// Date : 24 mars 2024
+ EasyVario - Simple vario bluetooth pour le parapente
+ Auteur : Jérôme Caloz
+ Date : 24 mars 2024
 
-// Résumé du code :
-// Ce programme calcul la vitesse verticale mesurée à l'aide d'un BMP280.
-// Transmet l'informations sour forme de phrase LK8EX1 via BLE
-// Testé avec FlySkyHy
+Résumé du code :
+ Ce programme calcul la vitesse verticale à l'aide de la pression mesurée par un BMP280.
+ Transmet l'informations sour forme de phrase LK8EX1 via BLE
+ Testé avec FlySkyHy
+ L'IMU n'est pas utilisé pour l'instant et est commenté
 
-//Hardware (AliExpress):
-// ESP32C3 SuperMini 
-// IMU et pression: GY-91 BMP280+MPU9250 board
+Hardware (AliExpress):
+ ESP32C3 SuperMini 
+ IMU et pression: GY-91 BMP280+MPU9250 board
 
 =====================================================================================================================================================
-// Clause de non-responsabilité :
-// Ce code est fourni à titre informatif uniquement. L'auteur ne garantit pas son exactitude ni sa fiabilité. Utilisez-le à vos propres risques.
-// This code is provided for information purposes only. The author does not guarantee its accuracy or reliability. Use at your own risk.
+Clause de non-responsabilité :
+!! Ce code est fourni à titre informatif uniquement. L'auteur ne garantit pas son exactitude ni sa fiabilité. Utilisez-le à vos propres risques. !!
+!! This code is provided for information purposes only. The author does not guarantee its accuracy or reliability. Use at your own risk.         !!
 =====================================================================================================================================================*/
 
 
@@ -98,7 +99,7 @@ void setup() {
   //Démarrage i2c
     Wire.begin(sda, scl);
 
-  //IMU pas utilisé pour l'instant
+  //IMU (pas utilisé pour l'instant)
     //IMU.setWire(&Wire);
     //IMU.beginAccel();
     //IMU.beginGyro();
@@ -142,7 +143,7 @@ void loop() {
   {
     LK8EX1Sentence=LK8EX1Calc(AVGPress.getAverage(),AVGAlti.getAverage(),AVGvSpeed.getAverage(),Temp,100); // calcul de la phrase LK8EX1
     //Serial.println(LK8EX1Sentence);
-    ble.println(LK8EX1Sentence); // trnasmission via BLE
+    ble.println(LK8EX1Sentence); // transmission via BLE
     NewCycleTime=millis();
   }
   
