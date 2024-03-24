@@ -22,11 +22,10 @@ BleSerial ble;
 int LedPin=8;
 
 
-
-//temps de cycle pour lecture des capteurs
+//temps de cycle pour lecture des capteurs ms
 unsigned long SensorCycleTime = 10; 
 unsigned long NewSensorCycleTime = 0;
-//temps de cycle pour la transmission BLE
+//temps de cycle pour la transmission BLE ms
 unsigned long CycleTime = 100; 
 unsigned long NewCycleTime = 0;
 
