@@ -44,7 +44,7 @@ String NMEAcrc(String NMEAString ){
 }
 
 // calcul de la chaine de cararatère
-String transmitFlySkyHy(float _pressurePa,float _alti, float _VitVertical, float _temp, int _batteryPercent)// pression , altitude, température, Vitesse verticale, batterie percent
+String LK8EX1Calc(float _pressurePa,float _alti, float _VitVertical, float _temp, int _batteryPercent)// pression , altitude, température, Vitesse verticale, batterie percent
 {
   //$LK8EX1,Pression,Altitude,vspeed,température,batterie,*CRC  
   int Press=round(_pressurePa);
@@ -72,25 +72,27 @@ float Vspeed(float _oldalti,float _newalti, float _dt)//Vitesse verticale
 //=====================================================================================
 void setup() {
   //Serial
-  Serial.begin(115200);
+    //Serial.begin(115200);
+
   //Démarrage i2c
-  Wire.begin(sda, scl);
+    Wire.begin(sda, scl);
+
   //IMU pas utilisé pour l'instant
-  //IMU.setWire(&Wire);
-  //IMU.beginAccel();
-  //IMU.beginGyro();
-  //IMU.beginMag();
+    //IMU.setWire(&Wire);
+    //IMU.beginAccel();
+    //IMU.beginGyro();
+    //IMU.beginMag();
 
   //BMP
-  BMP.begin(0x76);
+    BMP.begin(0x76);
 
   //BLE
-  ble.begin("EasyVario",true,LedPin);
-  digitalWrite(LedPin,HIGH);
+    ble.begin("EasyVario",true,LedPin);
+    digitalWrite(LedPin,HIGH);
 
-  AVGPress.clear();
-  AVGAlti.clear();
-  AVGvSpeed.clear();
+    AVGPress.clear();
+    AVGAlti.clear();
+    AVGvSpeed.clear();
 }
 //=====================================================================================
 
@@ -101,23 +103,23 @@ void loop() {
   if (millis()>NewSensorCycleTime+SensorCycleTime) // boucle calcul et mesures
   {    
     oldAlti=AVGAlti.getAverage(); // lire l'ancienne altitude
-    Alti=BMP.readAltitude(1022.0); //lire l'altitude
-    AVGAlti.addValue(Alti);
+    Alti=BMP.readAltitude(1022.0); //lire l'altitude actuelle
+    AVGAlti.addValue(Alti); //ajouter à la moyenne
 
     Vspeed_cmps=Vspeed(oldAlti,AVGAlti.getAverage(),SensorCycleTime); //Calcul Vspeed
     AVGvSpeed.addValue(Vspeed_cmps);
 
 
     Press=BMP.readPressure(); //Lire la pression
-    AVGPress.addValue(Press); // calcul de la moyenne
+    AVGPress.addValue(Press); // ajouter à la moyenne
 
     Temp=BMP.readTemperature(); // Lire la température
     NewSensorCycleTime=millis();
   };
 
-  if (millis()>NewCycleTime+CycleTime && ble.connected()) // boucle transmission
+  if (millis()>NewCycleTime+CycleTime && ble.connected()) // boucle transmission seulement si ble Actif
   {
-    LK8EX1Sentence=transmitFlySkyHy(AVGPress.getAverage(),AVGAlti.getAverage(),AVGvSpeed.getAverage(),Temp,100); // calcul de la phrase LK8EX1
+    LK8EX1Sentence=LK8EX1Calc(AVGPress.getAverage(),AVGAlti.getAverage(),AVGvSpeed.getAverage(),Temp,100); // calcul de la phrase LK8EX1
     //Serial.println(LK8EX1Sentence);
     ble.println(LK8EX1Sentence); // trnasmission via BLE
     NewCycleTime=millis();
