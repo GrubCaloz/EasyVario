@@ -1,5 +1,4 @@
 /*=====================================================================================================================================================
-
 // EasyVario - Simple vario bluetooth pour le parapente
 // Auteur : Jérôme Caloz
 // Date : 24 mars 2024
@@ -9,13 +8,14 @@
 // Transmet l'informations sour forme de phrase LK8EX1 via BLE
 // Testé avec FlySkyHy
 
-//Hardware:
-// ESP32C3 SuperMini
+//Hardware (AliExpress):
+// ESP32C3 SuperMini 
 // IMU et pression: GY-91 BMP280+MPU9250 board
 
+=====================================================================================================================================================
 // Clause de non-responsabilité :
 // Ce code est fourni à titre informatif uniquement. L'auteur ne garantit pas son exactitude ni sa fiabilité. Utilisez-le à vos propres risques.
-//  This code is provided for information purposes only. The author does not guarantee its accuracy or reliability. Use at your own risk.
+// This code is provided for information purposes only. The author does not guarantee its accuracy or reliability. Use at your own risk.
 =====================================================================================================================================================*/
 
 
