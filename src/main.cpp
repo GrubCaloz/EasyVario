@@ -1,5 +1,5 @@
 /*=====================================================================================================================================================
- EasyVario - Simple vario bluetooth pour le parapente
+EasyVario - Simple vario bluetooth pour le parapente
  Auteur : Jérôme Caloz
  Date : 24 mars 2024
 
@@ -31,7 +31,7 @@ int scl = 5;
 
 Adafruit_BMP280 BMP; 
 float Press,Alti,oldAlti,Temp,Vspeed_cmps;
-//MPU9250_asukiaaa IMU;
+//MPU9250_asukiaaa IMU; // IMU pas utilisé pour l'instant
 //float aX, aY, aZ, aSqrt, gX, gY, gZ, mDirection, mX, mY, mZ;
 
 RunningAverage AVGPress(100);
