@@ -125,7 +125,7 @@ void loop() {
   if (millis()>NewSensorCycleTime+SensorCycleTime) // boucle calcul et mesures
   {    
     oldAlti=AVGAlti.getAverage(); // lire l'ancienne altitude
-    Alti=BMP.readAltitude(1022.0); //lire l'altitude actuelle
+    Alti=BMP.readAltitude(); //lire l'altitude actuelle
     AVGAlti.addValue(Alti); //ajouter à la moyenne
 
     Vspeed_cmps=Vspeed(oldAlti,AVGAlti.getAverage(),SensorCycleTime); //Calcul Vspeed
